@@ -1,6 +1,5 @@
 package graph
 
-//go:generate go run github.com/99designs/gqlgen generate
 import "github.com/AEKDA/ozon_task/internal/service"
 
 // This file will not be regenerated automatically.

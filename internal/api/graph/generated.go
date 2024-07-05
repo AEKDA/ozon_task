@@ -5,7 +5,6 @@ package graph
 import (
 	"bytes"
 	"context"
-	"embed"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/AEKDA/ozon_task/api/graph/model"
+	"github.com/AEKDA/ozon_task/internal/api/graph/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -368,19 +367,62 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "schema.graphqls"
-var sourcesFS embed.FS
+var sources = []*ast.Source{
+	{Name: "../../../api/graph/schema.graphqls", Input: `directive @length(
+  min: Int = 0,
+  max: Int
+) on FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
 
-func sourceData(filename string) string {
-	data, err := sourcesFS.ReadFile(filename)
-	if err != nil {
-		panic(fmt.Sprintf("codegen problem: %s not available", filename))
-	}
-	return string(data)
+type Post {
+  id: ID!
+  title: String!
+  content: String!
+  author: String!
+  allowComments: Boolean!
+  comments: [Comment!]!
 }
 
-var sources = []*ast.Source{
-	{Name: "schema.graphqls", Input: sourceData("schema.graphqls"), BuiltIn: false},
+type Comment {
+  id: ID!
+  content: String!
+  author: String!
+  createdAt: String!
+  replies: [Comment!]!
+}
+
+input AddPostInput {
+  title: String!
+  content: String!
+  author: String!
+  allowComments: Boolean!
+}
+
+input AddCommentInput {
+  postId: ID!
+  content: String! @length(max: 200)
+  author: String!
+}
+
+type Query {
+  posts: [Post!]!
+  post(id: ID!): Post
+}
+
+type Mutation {
+  addPost(input: AddPostInput!): Post!
+  addComment(input: AddCommentInput!): Comment!
+}
+
+type Subscription {
+  commentAdded(postId: ID!): Comment!
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -418,7 +460,7 @@ func (ec *executionContext) field_Mutation_addComment_args(ctx context.Context, 
 	var arg0 model.AddCommentInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNAddCommentInput2githubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐAddCommentInput(ctx, tmp)
+		arg0, err = ec.unmarshalNAddCommentInput2githubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐAddCommentInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -433,7 +475,7 @@ func (ec *executionContext) field_Mutation_addPost_args(ctx context.Context, raw
 	var arg0 model.AddPostInput
 	if tmp, ok := rawArgs["input"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-		arg0, err = ec.unmarshalNAddPostInput2githubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐAddPostInput(ctx, tmp)
+		arg0, err = ec.unmarshalNAddPostInput2githubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐAddPostInput(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -729,7 +771,7 @@ func (ec *executionContext) _Comment_replies(ctx context.Context, field graphql.
 	}
 	res := resTmp.([]*model.Comment)
 	fc.Result = res
-	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
+	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Comment_replies(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -785,7 +827,7 @@ func (ec *executionContext) _Mutation_addPost(ctx context.Context, field graphql
 	}
 	res := resTmp.(*model.Post)
 	fc.Result = res
-	return ec.marshalNPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPost(ctx, field.Selections, res)
+	return ec.marshalNPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPost(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_addPost(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -854,7 +896,7 @@ func (ec *executionContext) _Mutation_addComment(ctx context.Context, field grap
 	}
 	res := resTmp.(*model.Comment)
 	fc.Result = res
-	return ec.marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
+	return ec.marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_addComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1141,7 +1183,7 @@ func (ec *executionContext) _Post_comments(ctx context.Context, field graphql.Co
 	}
 	res := resTmp.([]*model.Comment)
 	fc.Result = res
-	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
+	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Post_comments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1197,7 +1239,7 @@ func (ec *executionContext) _Query_posts(ctx context.Context, field graphql.Coll
 	}
 	res := resTmp.([]*model.Post)
 	fc.Result = res
-	return ec.marshalNPost2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPostᚄ(ctx, field.Selections, res)
+	return ec.marshalNPost2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPostᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_posts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1252,7 +1294,7 @@ func (ec *executionContext) _Query_post(ctx context.Context, field graphql.Colle
 	}
 	res := resTmp.(*model.Post)
 	fc.Result = res
-	return ec.marshalOPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPost(ctx, field.Selections, res)
+	return ec.marshalOPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPost(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Query_post(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1458,7 +1500,7 @@ func (ec *executionContext) _Subscription_commentAdded(ctx context.Context, fiel
 				w.Write([]byte{'{'})
 				graphql.MarshalString(field.Alias).MarshalGQL(w)
 				w.Write([]byte{':'})
-				ec.marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐComment(ctx, field.Selections, res).MarshalGQL(w)
+				ec.marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐComment(ctx, field.Selections, res).MarshalGQL(w)
 				w.Write([]byte{'}'})
 			})
 		case <-ctx.Done():
@@ -4010,12 +4052,12 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNAddCommentInput2githubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐAddCommentInput(ctx context.Context, v interface{}) (model.AddCommentInput, error) {
+func (ec *executionContext) unmarshalNAddCommentInput2githubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐAddCommentInput(ctx context.Context, v interface{}) (model.AddCommentInput, error) {
 	res, err := ec.unmarshalInputAddCommentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNAddPostInput2githubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐAddPostInput(ctx context.Context, v interface{}) (model.AddPostInput, error) {
+func (ec *executionContext) unmarshalNAddPostInput2githubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐAddPostInput(ctx context.Context, v interface{}) (model.AddPostInput, error) {
 	res, err := ec.unmarshalInputAddPostInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -4035,11 +4077,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNComment2githubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v model.Comment) graphql.Marshaler {
+func (ec *executionContext) marshalNComment2githubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v model.Comment) graphql.Marshaler {
 	return ec._Comment(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐCommentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Comment) graphql.Marshaler {
+func (ec *executionContext) marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐCommentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Comment) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4063,7 +4105,7 @@ func (ec *executionContext) marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_ta
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐComment(ctx, sel, v[i])
+			ret[i] = ec.marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐComment(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4083,7 +4125,7 @@ func (ec *executionContext) marshalNComment2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_ta
 	return ret
 }
 
-func (ec *executionContext) marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v *model.Comment) graphql.Marshaler {
+func (ec *executionContext) marshalNComment2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v *model.Comment) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4108,11 +4150,11 @@ func (ec *executionContext) marshalNID2int64(ctx context.Context, sel ast.Select
 	return res
 }
 
-func (ec *executionContext) marshalNPost2githubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v model.Post) graphql.Marshaler {
+func (ec *executionContext) marshalNPost2githubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v model.Post) graphql.Marshaler {
 	return ec._Post(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNPost2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPostᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Post) graphql.Marshaler {
+func (ec *executionContext) marshalNPost2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPostᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Post) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4136,7 +4178,7 @@ func (ec *executionContext) marshalNPost2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_task�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPost(ctx, sel, v[i])
+			ret[i] = ec.marshalNPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPost(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4156,7 +4198,7 @@ func (ec *executionContext) marshalNPost2ᚕᚖgithubᚗcomᚋAEKDAᚋozon_task�
 	return ret
 }
 
-func (ec *executionContext) marshalNPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v *model.Post) graphql.Marshaler {
+func (ec *executionContext) marshalNPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v *model.Post) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -4476,7 +4518,7 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
-func (ec *executionContext) marshalOPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋapiᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v *model.Post) graphql.Marshaler {
+func (ec *executionContext) marshalOPost2ᚖgithubᚗcomᚋAEKDAᚋozon_taskᚋinternalᚋapiᚋgraphᚋmodelᚐPost(ctx context.Context, sel ast.SelectionSet, v *model.Post) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

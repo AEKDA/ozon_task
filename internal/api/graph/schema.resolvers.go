@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/AEKDA/ozon_task/api/graph/model"
+	"github.com/AEKDA/ozon_task/internal/api/graph/model"
 )
 
 // AddPost is the resolver for the addPost field.
