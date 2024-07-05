@@ -1,0 +1,54 @@
+directive @length(
+  min: Int = 0,
+  max: Int
+) on FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
+
+type Post {
+  id: ID!
+  title: String!
+  content: String!
+  author: String!
+  allowComments: Boolean!
+  comments: [Comment!]!
+}
+
+type Comment {
+  id: ID!
+  content: String!
+  author: String!
+  createdAt: String!
+  replies: [Comment!]!
+}
+
+input AddPostInput {
+  title: String!
+  content: String!
+  author: String!
+  allowComments: Boolean!
+}
+
+input AddCommentInput {
+  postId: ID!
+  content: String! @length(max: 200)
+  author: String!
+}
+
+type Query {
+  posts: [Post!]!
+  post(id: ID!): Post
+}
+
+type Mutation {
+  addPost(input: AddPostInput!): Post!
+  addComment(input: AddCommentInput!): Comment!
+}
+
+type Subscription {
+  commentAdded(postId: ID!): Comment!
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
