@@ -30,7 +30,7 @@ resolver:
 # struct_tag: json
 
 # Optional: turn on to use []Thing instead of []*Thing
-# omit_slice_element_pointers: false
+omit_slice_element_pointers: true
 
 # Optional: turn on to omit Is<Name>() methods to interface and unions
 # omit_interface_checks : true
@@ -46,7 +46,7 @@ resolver:
 
 # Optional: turn off to make struct-type struct fields not use pointers
 # e.g. type Thing struct { FieldA OtherThing } instead of { FieldA *OtherThing }
-# struct_fields_always_pointers: true
+struct_fields_always_pointers: false
 
 # Optional: turn off to make resolvers return values instead of pointers for structs
 # resolvers_always_return_pointers: true

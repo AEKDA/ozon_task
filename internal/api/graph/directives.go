@@ -9,6 +9,8 @@ import (
 
 func LengthDirective(ctx context.Context, obj interface{}, next graphql.Resolver, min *int, max *int) (res interface{}, err error) {
 
+	res, err = next(ctx)
+
 	str, ok := res.(string)
 	if !ok {
 		return nil, fmt.Errorf("length directive can only be applied to strings")
@@ -21,5 +23,5 @@ func LengthDirective(ctx context.Context, obj interface{}, next graphql.Resolver
 		return nil, fmt.Errorf("field is below the minimum length of %d", min)
 	}
 
-	return next(ctx)
+	return
 }

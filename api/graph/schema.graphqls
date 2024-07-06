@@ -3,21 +3,50 @@ directive @length(
   max: Int
 ) on FIELD_DEFINITION | ARGUMENT_DEFINITION | INPUT_FIELD_DEFINITION
 
+scalar Time
+
+type PageInfo {
+  hasNextPage: Boolean!
+  startCursor: String!
+  endCursor: String!
+}
+
+type PostEdge {
+  cursor: String!
+  node: Post!
+}
+
+type PostConnection {
+  edges: [PostEdge!]!
+  pageInfo: PageInfo!
+}
+
+type CommentEdge {
+  cursor: String!
+  node: Comment!
+}
+
+type CommentConnection {
+  edges: [CommentEdge!]!
+  pageInfo: PageInfo!
+}
+
 type Post {
   id: ID!
   title: String!
   content: String!
   author: String!
+  createdAt: Time!
   allowComments: Boolean!
-  comments: [Comment!]!
+  comments(first: Int! = 25, after: String): CommentConnection!
 }
 
 type Comment {
   id: ID!
   content: String!
   author: String!
-  createdAt: String!
-  replies: [Comment!]!
+  createdAt: Time!
+  replies(first: Int! = 25, after: String): CommentConnection!
 }
 
 input AddPostInput {
@@ -33,14 +62,22 @@ input AddCommentInput {
   author: String!
 }
 
+input AddReplyInput {
+  commentId: ID!
+  content: String! @length(max: 200)
+  author: String!
+}
+
 type Query {
-  posts: [Post!]!
-  post(id: ID!): Post
+  posts(first: Int! = 25, after: String): PostConnection!
+  post(id: ID!): Post!
 }
 
 type Mutation {
   addPost(input: AddPostInput!): Post!
-  addComment(input: AddCommentInput!): Comment!
+  addCommentToPost(input: AddCommentInput!): Comment!
+  addReplyToComment(input: AddReplyInput!): Comment!
+  setCommentPremission(postId: ID!, allow: Boolean!): Post!
 }
 
 type Subscription {

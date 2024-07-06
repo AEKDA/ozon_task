@@ -2,6 +2,10 @@
 
 package model
 
+import (
+	"time"
+)
+
 type AddCommentInput struct {
 	PostID  int64  `json:"postId"`
 	Content string `json:"content"`
@@ -15,24 +19,57 @@ type AddPostInput struct {
 	AllowComments bool   `json:"allowComments"`
 }
 
+type AddReplyInput struct {
+	CommentID int64  `json:"commentId"`
+	Content   string `json:"content"`
+	Author    string `json:"author"`
+}
+
 type Comment struct {
-	ID        int64      `json:"id"`
-	Content   string     `json:"content"`
-	Author    string     `json:"author"`
-	CreatedAt string     `json:"createdAt"`
-	Replies   []*Comment `json:"replies"`
+	ID        int64             `json:"id"`
+	Content   string            `json:"content"`
+	Author    string            `json:"author"`
+	CreatedAt time.Time         `json:"createdAt"`
+	Replies   CommentConnection `json:"replies"`
+}
+
+type CommentConnection struct {
+	Edges    []CommentEdge `json:"edges"`
+	PageInfo PageInfo      `json:"pageInfo"`
+}
+
+type CommentEdge struct {
+	Cursor string  `json:"cursor"`
+	Node   Comment `json:"node"`
 }
 
 type Mutation struct {
 }
 
+type PageInfo struct {
+	HasNextPage bool   `json:"hasNextPage"`
+	StartCursor string `json:"startCursor"`
+	EndCursor   string `json:"endCursor"`
+}
+
 type Post struct {
-	ID            int64      `json:"id"`
-	Title         string     `json:"title"`
-	Content       string     `json:"content"`
-	Author        string     `json:"author"`
-	AllowComments bool       `json:"allowComments"`
-	Comments      []*Comment `json:"comments"`
+	ID            int64             `json:"id"`
+	Title         string            `json:"title"`
+	Content       string            `json:"content"`
+	Author        string            `json:"author"`
+	CreatedAt     time.Time         `json:"createdAt"`
+	AllowComments bool              `json:"allowComments"`
+	Comments      CommentConnection `json:"comments"`
+}
+
+type PostConnection struct {
+	Edges    []PostEdge `json:"edges"`
+	PageInfo PageInfo   `json:"pageInfo"`
+}
+
+type PostEdge struct {
+	Cursor string `json:"cursor"`
+	Node   Post   `json:"node"`
 }
 
 type Query struct {
