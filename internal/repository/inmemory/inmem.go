@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -53,8 +54,8 @@ func (db *InMemoryDB) AddCommentToPost(ctx context.Context, commentInput model.A
 	defer db.mu.Unlock()
 
 	post, ok := db.posts[commentInput.PostID]
-	if !ok {
-		return nil, errors.New("post not found")
+	if !ok || !post.AllowComments {
+		return nil, errors.New("the post was not found or comments cannot be left under it")
 	}
 
 	comment := model.Comment{
@@ -62,7 +63,7 @@ func (db *InMemoryDB) AddCommentToPost(ctx context.Context, commentInput model.A
 		Content:   commentInput.Content,
 		Author:    commentInput.Author,
 		CreatedAt: time.Now(),
-		Replies:   model.CommentConnection{},
+		ReplyTo:   nil,
 	}
 
 	post.Comments.Edges = append(post.Comments.Edges, model.CommentEdge{
@@ -71,6 +72,7 @@ func (db *InMemoryDB) AddCommentToPost(ctx context.Context, commentInput model.A
 	})
 
 	db.comments[comment.ID] = comment
+	db.posts[post.ID] = post
 
 	return &comment, nil
 }
@@ -90,10 +92,14 @@ func (db *InMemoryDB) SetCommentPremission(ctx context.Context, postID int64, al
 func (db *InMemoryDB) AddReplyToComment(ctx context.Context, commentInput model.AddReplyInput) (*model.Comment, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
+	post, ok := db.posts[commentInput.PostID]
+	if !ok || !post.AllowComments {
+		return nil, fmt.Errorf("the post was not found or comments cannot be left under it")
+	}
 
 	comment, ok := db.comments[commentInput.CommentID]
 	if !ok {
-		return nil, errors.New("comment not found")
+		return nil, fmt.Errorf("comment not found")
 	}
 
 	newReply := model.Comment{
@@ -101,34 +107,32 @@ func (db *InMemoryDB) AddReplyToComment(ctx context.Context, commentInput model.
 		Content:   commentInput.Content,
 		Author:    commentInput.Author,
 		CreatedAt: time.Now(),
-		Replies:   model.CommentConnection{},
+		ReplyTo:   &commentInput.CommentID,
 	}
 
-	comment.Replies.Edges = append(comment.Replies.Edges, model.CommentEdge{
-		Cursor: fmt.Sprintf("%d", newReply.ID),
-		Node:   newReply,
-	})
+	post.Comments.Edges = append(post.Comments.Edges, model.CommentEdge{Cursor: cursor.Encode(comment.ID), Node: comment})
 
 	db.comments[comment.ID] = comment
+	db.posts[post.ID] = post
 
 	return &newReply, nil
 }
 
-func (db *InMemoryDB) GetPosts(ctx context.Context, first int, after *string) (*model.PostConnection, error) {
+func (db *InMemoryDB) GetPosts(ctx context.Context, first int, afterCursor *string) (*model.PostConnection, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
 	var startIdx int
 
-	cursor, err := cursor.Decode(after)
+	after, err := cursor.Decode(afterCursor)
 	if err != nil {
 		return nil, err
 	}
 
-	if cursor != nil {
+	if after != nil {
 		found := false
 		for idx, post := range db.posts {
-			if post.ID == *cursor {
+			if post.ID == *after {
 				startIdx = int(idx) + 1
 				found = true
 				break
@@ -139,32 +143,79 @@ func (db *InMemoryDB) GetPosts(ctx context.Context, first int, after *string) (*
 		}
 	}
 
-	var endIdx int
-
-	endIdx = startIdx + first
+	endIdx := startIdx + first
 	if endIdx > len(db.posts) {
 		endIdx = len(db.posts)
 	}
 
-	edges := make([]model.PostEdge, 0, endIdx-startIdx)
-	for idx := startIdx; idx < endIdx; idx++ {
-		post := db.posts[int64(idx)]
+	edges := make([]model.PostEdge, 0, first)
+	for idx := startIdx; idx <= endIdx; idx++ {
+		post, ok := db.posts[int64(idx)]
+		if !ok {
+			continue
+		}
 		edges = append(edges, model.PostEdge{
-			Cursor: fmt.Sprintf("%d", post.ID),
+			Cursor: cursor.Encode(post.ID),
 			Node:   post,
 		})
 	}
 
 	pageInfo := model.PageInfo{
 		HasNextPage: endIdx < len(db.posts),
-		StartCursor: edges[0].Cursor,
-		EndCursor:   edges[len(edges)-1].Cursor,
+	}
+
+	if len(edges) > 0 {
+		pageInfo.StartCursor = edges[0].Cursor
+		pageInfo.EndCursor = edges[len(edges)-1].Cursor
 	}
 
 	return &model.PostConnection{
 		Edges:    edges,
 		PageInfo: pageInfo,
 	}, nil
+}
+
+func (db *InMemoryDB) GetCommentsByPostID(ctx context.Context, postID int64, first int, after *string) (model.CommentConnection, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	post, ok := db.posts[postID]
+	if !ok {
+		return model.CommentConnection{}, ErrNotFound
+	}
+	var filteredComments []model.CommentEdge
+	if after != nil {
+		afterID, err := cursor.Decode(after)
+		if err != nil {
+			return model.CommentConnection{}, err
+		}
+		for _, comment := range post.Comments.Edges {
+			if comment.Node.ID > *afterID {
+				filteredComments = append(filteredComments, comment)
+			}
+		}
+	} else {
+		filteredComments = post.Comments.Edges
+	}
+	slices.SortFunc(filteredComments, func(a model.CommentEdge, b model.CommentEdge) int { return int(a.Node.ID - b.Node.ID) })
+
+	pageInfo := model.PageInfo{
+		HasNextPage: len(filteredComments) > first,
+	}
+	if len(filteredComments) > first {
+		filteredComments = filteredComments[:first]
+	}
+
+	if len(filteredComments) > 0 {
+		pageInfo.StartCursor = filteredComments[0].Cursor
+		pageInfo.EndCursor = filteredComments[len(filteredComments)-1].Cursor
+	}
+
+	return model.CommentConnection{
+		Edges:    filteredComments,
+		PageInfo: pageInfo,
+	}, nil
+
 }
 
 func (db *InMemoryDB) GetPostByID(ctx context.Context, id int64) (*model.Post, error) {
@@ -178,7 +229,58 @@ func (db *InMemoryDB) GetPostByID(ctx context.Context, id int64) (*model.Post, e
 	return &post, nil
 }
 
-// Helper methods
+func (db *InMemoryDB) GetReplyByCommentID(ctx context.Context, commentID int64, first int, after *string) (*model.CommentConnection, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	var comments []model.Comment
+
+	for _, comment := range db.comments {
+		if comment.ReplyTo != nil && *comment.ReplyTo == commentID {
+			comments = append(comments, comment)
+		}
+	}
+
+	if after != nil {
+		afterID, err := cursor.Decode(after)
+		if err != nil {
+			return nil, err
+		}
+		var filteredComments []model.Comment
+		for _, comment := range comments {
+			if comment.ID > *afterID {
+				filteredComments = append(filteredComments, comment)
+			}
+		}
+		comments = filteredComments
+	}
+
+	if len(comments) > first {
+		comments = comments[:first]
+	}
+
+	edges := make([]model.CommentEdge, len(comments))
+	for i, comment := range comments {
+		edges[i] = model.CommentEdge{
+			Cursor: cursor.Encode(comment.ID),
+			Node:   comment,
+		}
+	}
+
+	pageInfo := model.PageInfo{
+		HasNextPage: len(comments) > first,
+	}
+	if len(edges) > 0 {
+		pageInfo.StartCursor = edges[0].Cursor
+		pageInfo.EndCursor = edges[len(edges)-1].Cursor
+	}
+
+	return &model.CommentConnection{
+		Edges:    edges,
+		PageInfo: pageInfo,
+	}, nil
+}
+
 func (db *InMemoryDB) generatePostID() int64 {
 	db.postIDCounter++
 	return db.postIDCounter

@@ -43,8 +43,7 @@ func Run() {
 		if err != nil {
 			panic(err)
 		}
-		repo = pgrepo.New(pgconn)
-
+		repo = pgrepo.New(pgconn, log)
 	default:
 		panic("invalid storage type")
 	}

@@ -46,7 +46,7 @@ type Comment {
   content: String!
   author: String!
   createdAt: Time!
-  replies(first: Int! = 25, after: String): CommentConnection!
+  reply_to: ID
 }
 
 input AddPostInput {
@@ -64,6 +64,7 @@ input AddCommentInput {
 
 input AddReplyInput {
   commentId: ID!
+  postId: ID!
   content: String! @length(max: 200)
   author: String!
 }
@@ -84,8 +85,8 @@ type Subscription {
   commentAdded(postId: ID!): Comment!
 }
 
-schema {
-  query: Query
-  mutation: Mutation
-  subscription: Subscription
-}
+# schema {
+#   query: Query
+#   mutation: Mutation
+#   subscription: Subscription
+# }

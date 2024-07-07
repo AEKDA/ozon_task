@@ -30,6 +30,11 @@ func (r *mutationResolver) SetCommentPremission(ctx context.Context, postID int6
 	return r.PostService.SetCommentPremission(ctx, postID, allow)
 }
 
+// Comments is the resolver for the comments field.
+func (r *postResolver) Comments(ctx context.Context, obj *model.Post, first int, after *string) (*model.CommentConnection, error) {
+	return r.PostService.Comments(ctx, obj.ID, first, after)
+}
+
 // Posts is the resolver for the posts field.
 func (r *queryResolver) Posts(ctx context.Context, first int, after *string) (*model.PostConnection, error) {
 	return r.PostService.Posts(ctx, first, after)
@@ -48,6 +53,9 @@ func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID int64) (
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
+// Post returns PostResolver implementation.
+func (r *Resolver) Post() PostResolver { return &postResolver{r} }
+
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
@@ -55,5 +63,6 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
 
 type mutationResolver struct{ *Resolver }
+type postResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

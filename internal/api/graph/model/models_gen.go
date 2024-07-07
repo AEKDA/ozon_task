@@ -21,16 +21,17 @@ type AddPostInput struct {
 
 type AddReplyInput struct {
 	CommentID int64  `json:"commentId"`
+	PostID    int64  `json:"postId"`
 	Content   string `json:"content"`
 	Author    string `json:"author"`
 }
 
 type Comment struct {
-	ID        int64             `json:"id"`
-	Content   string            `json:"content"`
-	Author    string            `json:"author"`
-	CreatedAt time.Time         `json:"createdAt"`
-	Replies   CommentConnection `json:"replies"`
+	ID        int64     `json:"id"`
+	Content   string    `json:"content"`
+	Author    string    `json:"author"`
+	CreatedAt time.Time `json:"createdAt"`
+	ReplyTo   *int64    `json:"reply_to,omitempty"`
 }
 
 type CommentConnection struct {
