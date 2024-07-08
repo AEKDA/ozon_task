@@ -589,7 +589,6 @@ input AddCommentInput {
 
 input AddReplyInput {
   commentId: ID!
-  postId: ID!
   content: String! @length(max: 200)
   author: String!
 }
@@ -4437,7 +4436,7 @@ func (ec *executionContext) unmarshalInputAddReplyInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"commentId", "postId", "content", "author"}
+	fieldsInOrder := [...]string{"commentId", "content", "author"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -4451,13 +4450,6 @@ func (ec *executionContext) unmarshalInputAddReplyInput(ctx context.Context, obj
 				return it, err
 			}
 			it.CommentID = data
-		case "postId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("postId"))
-			data, err := ec.unmarshalNID2int64(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PostID = data
 		case "content":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("content"))
 			directive0 := func(ctx context.Context) (interface{}, error) { return ec.unmarshalNString2string(ctx, v) }

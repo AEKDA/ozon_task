@@ -16,7 +16,7 @@ func New(logLevel string) (*zap.Logger, error) {
 	config := zap.Config{
 		Level:            zap.NewAtomicLevelAt(level),
 		Development:      false,
-		Encoding:         "json",
+		Encoding:         "console",
 		EncoderConfig:    zap.NewProductionEncoderConfig(),
 		OutputPaths:      []string{"stdout"},
 		ErrorOutputPaths: []string{"stderr"},

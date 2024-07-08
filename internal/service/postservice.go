@@ -17,7 +17,6 @@ type PostRepository interface {
 type CommentRepository interface {
 	AddCommentToPost(ctx context.Context, commentInput model.AddCommentInput) (*model.Comment, error)
 	AddReplyToComment(ctx context.Context, commentInput model.AddReplyInput) (*model.Comment, error)
-	GetReplyByCommentID(ctx context.Context, commentID int64, first int, after *string) (*model.CommentConnection, error)
 	GetCommentsByPostID(ctx context.Context, postID int64, first int, after *string) (model.CommentConnection, error)
 }
 
@@ -96,8 +95,4 @@ func (s *PostService) Comments(ctx context.Context, postID int64, first int, aft
 
 func (s *PostService) Post(ctx context.Context, id int64) (*model.Post, error) {
 	return s.postRepo.GetPostByID(ctx, id)
-}
-
-func (s *PostService) Reply(ctx context.Context, commentID int64, first int, after *string) (*model.CommentConnection, error) {
-	return s.commentRepo.GetReplyByCommentID(ctx, commentID, first, after)
 }

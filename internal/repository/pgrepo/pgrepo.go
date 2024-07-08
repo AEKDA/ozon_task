@@ -230,8 +230,8 @@ func (r *Repository) AddReplyToComment(ctx context.Context, commentInput model.A
 
 	var commentAllow bool
 	err = tx.QueryRow(ctx,
-		"SELECT allow_comments from posts where id = $1",
-		commentInput.PostID).Scan(
+		"SELECT allow_comments from posts where id = (select post_id from comments where comments.id = $1)",
+		commentInput.CommentID).Scan(
 		&commentAllow)
 	if err != nil {
 		tx.Rollback(ctx)
@@ -256,74 +256,4 @@ func (r *Repository) AddReplyToComment(ctx context.Context, commentInput model.A
 
 	tx.Commit(ctx)
 	return &newComment, nil
-}
-
-func (r *Repository) GetReplyByCommentID(ctx context.Context, commentID int64, first int, after *string) (*model.CommentConnection, error) {
-	query := `
-        SELECT id, author, content, created_at, reply_to
-        FROM comments
-        WHERE reply_to = $1 %s
-        ORDER BY created_at ASC
-        LIMIT $2
-    `
-
-	var rows pgx.Rows
-	var err error
-
-	if after != nil {
-		var afterID *int64
-		afterID, err = cursor.Decode(after)
-		if err != nil {
-			return nil, err
-		}
-		query = fmt.Sprintf(query, "AND id > $3")
-		rows, err = r.db.Query(ctx, query, commentID, first, afterID)
-	} else {
-		query = fmt.Sprintf(query, "")
-		rows, err = r.db.Query(ctx, query, commentID, first)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var comments []model.Comment
-	for rows.Next() {
-		var comment model.Comment
-		var replyTo sql.NullInt64
-
-		if err := rows.Scan(&comment.ID, &comment.Author, &comment.Content, &comment.CreatedAt, &replyTo); err != nil {
-			return nil, err
-		}
-		if replyTo.Valid {
-			comment.ReplyTo = &replyTo.Int64
-		}
-		comments = append(comments, comment)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	edges := make([]model.CommentEdge, len(comments))
-	for i, comment := range comments {
-		edges[i] = model.CommentEdge{
-			Cursor: cursor.Encode(comment.ID),
-			Node:   comment,
-		}
-	}
-
-	pageInfo := model.PageInfo{
-		HasNextPage: len(comments) == first,
-	}
-	if len(edges) > 0 {
-		pageInfo.StartCursor = edges[0].Cursor
-		pageInfo.EndCursor = edges[len(edges)-1].Cursor
-	}
-
-	return &model.CommentConnection{
-		Edges:    edges,
-		PageInfo: pageInfo,
-	}, nil
 }

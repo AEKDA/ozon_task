@@ -21,7 +21,6 @@ type AddPostInput struct {
 
 type AddReplyInput struct {
 	CommentID int64  `json:"commentId"`
-	PostID    int64  `json:"postId"`
 	Content   string `json:"content"`
 	Author    string `json:"author"`
 }
