@@ -64,7 +64,6 @@ input AddCommentInput {
 
 input AddReplyInput {
   commentId: ID!
-  postId: ID!
   content: String! @length(max: 200)
   author: String!
 }
