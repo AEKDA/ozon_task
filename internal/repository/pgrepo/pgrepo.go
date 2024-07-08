@@ -189,26 +189,72 @@ func (r *Repository) SetCommentPremission(ctx context.Context, postID int64, all
 }
 
 func (r *Repository) AddCommentToPost(ctx context.Context, commentInput model.AddCommentInput) (*model.Comment, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var commentAllow bool
+	err = tx.QueryRow(ctx,
+		"SELECT allow_comments from posts where id = $1",
+		commentInput.PostID).Scan(
+		&commentAllow)
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
+	if !commentAllow {
+		tx.Rollback(ctx)
+		return nil, fmt.Errorf("comments are not allowed")
+	}
+
 	var newComment model.Comment
-	err := r.db.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		"INSERT INTO comments (post_id, content, author) VALUES ($1, $2, $3) RETURNING id, content, author, created_at",
 		commentInput.PostID, commentInput.Content, commentInput.Author).Scan(
 		&newComment.ID, &newComment.Content, &newComment.Author, &newComment.CreatedAt)
 	if err != nil {
+		tx.Rollback(ctx)
 		return nil, err
 	}
+
+	tx.Commit(ctx)
 	return &newComment, nil
 }
 
 func (r *Repository) AddReplyToComment(ctx context.Context, commentInput model.AddReplyInput) (*model.Comment, error) {
-	var newComment model.Comment
-	err := r.db.QueryRow(ctx,
-		"INSERT INTO comments (content, author, reply_to) VALUES ((SELECT post_id FROM comments WHERE id=$1), $2, $3, $1) RETURNING id, content, author, created_at",
-		commentInput.CommentID, commentInput.Content, commentInput.Author).Scan(
-		&newComment.ID, &newComment.Content, &newComment.Author, &newComment.CreatedAt)
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	var commentAllow bool
+	err = tx.QueryRow(ctx,
+		"SELECT allow_comments from posts where id = $1",
+		commentInput.PostID).Scan(
+		&commentAllow)
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
+	if !commentAllow {
+		tx.Rollback(ctx)
+		return nil, fmt.Errorf("comments are not allowed")
+	}
+
+	var newComment model.Comment
+	err = tx.QueryRow(ctx,
+		`INSERT INTO comments (post_id, content, author, reply_to) 
+		VALUES ((SELECT post_id FROM comments WHERE id=$1), $2, $3, $1) 
+		RETURNING id, content, author, created_at, reply_to`,
+		commentInput.CommentID, commentInput.Content, commentInput.Author).Scan(
+		&newComment.ID, &newComment.Content, &newComment.Author, &newComment.CreatedAt, &newComment.ReplyTo)
+	if err != nil {
+		tx.Rollback(ctx)
+		return nil, err
+	}
+
+	tx.Commit(ctx)
 	return &newComment, nil
 }
 

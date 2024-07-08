@@ -10,7 +10,7 @@ CREATE TABLE posts (
 CREATE TABLE comments (
     id SERIAL PRIMARY KEY,
     author TEXT NOT NULL,
-    post_id integer REFERENCES posts,
+    post_id integer REFERENCES posts not null,
     content TEXT NOT NULL check (length(content) < 2000),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     reply_to integer REFERENCES comments
