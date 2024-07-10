@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AEKDA/ozon_task/internal/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/tracelog"
 )
 
 const (
@@ -13,7 +15,7 @@ const (
 	maxConns = 20
 )
 
-func NewConnection(ctx context.Context, connCfg Config) (*pgxpool.Pool, error) {
+func NewConnection(ctx context.Context, connCfg Config, logger *logger.Logger) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -21,6 +23,8 @@ func NewConnection(ctx context.Context, connCfg Config) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config error %w", err)
 	}
+	zapLogger := ZapLogger{logger}
+	cfg.ConnConfig.Tracer = &tracelog.TraceLog{Logger: &zapLogger, LogLevel: tracelog.LogLevelDebug}
 	cfg.MaxConns = maxConns
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

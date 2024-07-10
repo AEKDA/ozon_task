@@ -126,6 +126,35 @@ func (db *InMemoryDB) GetPosts(ctx context.Context, first int, after *string) (*
 	return &connection, err
 }
 
+func (db *InMemoryDB) GetCommentsByPostIDs(ctx context.Context, postIDs []int64, first int, after *string) (map[int64]model.CommentConnection, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	connections := make(map[int64]model.CommentConnection)
+
+	for _, postID := range postIDs {
+		_, ok := db.posts[postID]
+		if !ok {
+			return nil, fmt.Errorf("%w post id: %d", ErrNotFound, postID)
+		}
+
+		comments := []Comment{}
+		for _, v := range db.comments {
+			if v.PostID == postID {
+				comments = append(comments, v)
+			}
+		}
+
+		connection, err := commentsToCursorPagination(comments, first, after)
+		if err != nil {
+			return nil, fmt.Errorf("cursor is invalid")
+		}
+
+		connections[postID] = connection
+	}
+
+	return connections, nil
+}
 func (db *InMemoryDB) GetCommentsByPostID(ctx context.Context, postID int64, first int, after *string) (model.CommentConnection, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()

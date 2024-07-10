@@ -9,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/AEKDA/ozon_task/internal/api/graph"
 	"github.com/AEKDA/ozon_task/internal/database/psql"
+	"github.com/AEKDA/ozon_task/internal/dataloader"
 	"github.com/AEKDA/ozon_task/internal/logger"
 	"github.com/AEKDA/ozon_task/internal/repository/inmemory"
 	"github.com/AEKDA/ozon_task/internal/repository/pgrepo"
@@ -28,6 +29,7 @@ func Run() {
 	if err != nil {
 		panic(err)
 	}
+	defer log.Sync()
 
 	var repo interface {
 		service.PostRepository
@@ -38,7 +40,7 @@ func Run() {
 	case TypeInmemory:
 		repo = inmemory.NewInMemoryDB()
 	case TypePostgres:
-		pgconn, err := psql.NewConnection(context.Background(), cfg.Database)
+		pgconn, err := psql.NewConnection(context.Background(), cfg.Database, log)
 		if err != nil {
 			panic(err)
 		}
@@ -55,9 +57,21 @@ func Run() {
 			Directives: graph.DirectiveRoot{Length: graph.LengthDirective},
 		}))
 
-	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	mux := http.NewServeMux()
+
+	mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
+	mux.Handle("/query", srv)
+
+	server := &http.Server{
+		Handler: mux, Addr: fmt.Sprintf(":%d", cfg.App.Port),
+	}
+
+	server.Handler = dataloader.Middleware(repo, server.Handler)
+	server.Handler = logger.Middleware(log, server.Handler)
 
 	log.Info("starting the server", zap.String("host", cfg.App.Host), zap.Uint16("port", cfg.App.Port))
-	log.Error(http.ListenAndServe(fmt.Sprintf(":%d", cfg.App.Port), nil).Error())
+	err = server.ListenAndServe()
+	if err != nil {
+		log.Error(err.Error())
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/AEKDA/ozon_task/internal/api/graph/model"
+	"github.com/AEKDA/ozon_task/internal/dataloader"
 )
 
 // AddPost is the resolver for the addPost field.
@@ -32,7 +33,9 @@ func (r *mutationResolver) SetCommentPremission(ctx context.Context, postID int6
 
 // Comments is the resolver for the comments field.
 func (r *postResolver) Comments(ctx context.Context, obj *model.Post, first int, after *string) (*model.CommentConnection, error) {
-	return r.PostService.Comments(ctx, obj.ID, first, after)
+	connection, err := dataloader.GetComments(ctx, obj.ID, first, after)
+	return &connection, err
+
 }
 
 // Posts is the resolver for the posts field.

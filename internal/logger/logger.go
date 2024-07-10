@@ -7,7 +7,11 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func New(logLevel string) (*zap.Logger, error) {
+type Logger struct {
+	*zap.Logger
+}
+
+func New(logLevel string) (*Logger, error) {
 	var level zapcore.Level
 	if err := level.Set(logLevel); err != nil {
 		return nil, fmt.Errorf("invalid log level: %v", err)
@@ -27,5 +31,5 @@ func New(logLevel string) (*zap.Logger, error) {
 		return nil, err
 	}
 
-	return logger, nil
+	return &Logger{logger}, nil
 }

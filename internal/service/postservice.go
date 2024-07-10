@@ -18,6 +18,7 @@ type CommentRepository interface {
 	AddCommentToPost(ctx context.Context, commentInput model.AddCommentInput) (*model.Comment, error)
 	AddReplyToComment(ctx context.Context, commentInput model.AddReplyInput) (*model.Comment, error)
 	GetCommentsByPostID(ctx context.Context, postID int64, first int, after *string) (model.CommentConnection, error)
+	GetCommentsByPostIDs(ctx context.Context, postID []int64, first int, after *string) (map[int64]model.CommentConnection, error)
 }
 
 type PostService struct {

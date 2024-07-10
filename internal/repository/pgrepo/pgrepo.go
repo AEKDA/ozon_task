@@ -7,18 +7,18 @@ import (
 	"fmt"
 
 	"github.com/AEKDA/ozon_task/internal/api/graph/model"
+	"github.com/AEKDA/ozon_task/internal/logger"
 	"github.com/AEKDA/ozon_task/internal/repository/cursor"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/zap"
 )
 
 type Repository struct {
 	db     *pgxpool.Pool
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
-func New(db *pgxpool.Pool, log *zap.Logger) *Repository {
+func New(db *pgxpool.Pool, log *logger.Logger) *Repository {
 	return &Repository{db: db, logger: log}
 }
 
@@ -47,6 +47,55 @@ func (r *Repository) GetPostByID(ctx context.Context, id int64) (*model.Post, er
 	}
 
 	return &post, nil
+}
+
+func (r *Repository) GetCommentsByPostIDs(ctx context.Context, postIDs []int64, first int, after *string) (map[int64]model.CommentConnection, error) {
+	comments := make(map[int64][]model.Comment)
+	var args []interface{}
+
+	args = append(args, postIDs)
+	query := fmt.Sprintf("SELECT id, content, author, created_at, reply_to, post_id FROM comments WHERE post_id= ANY($%d::int[]) ", len(args))
+
+	if after != nil {
+		startID, err := cursor.Decode(after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %v", err)
+		}
+		args = append(args, *startID)
+		query = fmt.Sprintf("%s AND id > $%d", query, len(args))
+	}
+
+	args = append(args, first+1)
+	query = fmt.Sprintf("%s ORDER BY id ASC LIMIT $%d", query, len(args))
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return make(map[int64]model.CommentConnection), nil
+		}
+		return nil, fmt.Errorf("query failed: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var comment model.Comment
+		var postID int64
+		if err := rows.Scan(&comment.ID, &comment.Content, &comment.Author, &comment.CreatedAt, &comment.ReplyTo, &postID); err != nil {
+			return nil, fmt.Errorf("row scan failed: %v", err)
+		}
+		comments[postID] = append(comments[postID], comment)
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("rows error: %v", rows.Err())
+	}
+
+	ans := make(map[int64]model.CommentConnection, len(comments))
+	for k := range comments {
+		ans[k] = toCommentConnection(comments[k], first)
+	}
+
+	return ans, nil
 }
 
 func (r *Repository) GetCommentsByPostID(ctx context.Context, postID int64, first int, after *string) (model.CommentConnection, error) {
@@ -89,6 +138,11 @@ func (r *Repository) GetCommentsByPostID(ctx context.Context, postID int64, firs
 		return model.CommentConnection{}, fmt.Errorf("rows error: %v", rows.Err())
 	}
 
+	return toCommentConnection(comments, first), nil
+}
+
+func toCommentConnection(comments []model.Comment, first int) model.CommentConnection {
+
 	edges := make([]model.CommentEdge, 0, len(comments))
 	for _, comment := range comments {
 		edges = append(edges, model.CommentEdge{
@@ -116,7 +170,7 @@ func (r *Repository) GetCommentsByPostID(ctx context.Context, postID int64, firs
 	return model.CommentConnection{
 		Edges:    edges,
 		PageInfo: pageInfo,
-	}, nil
+	}
 }
 
 func (r *Repository) GetPosts(ctx context.Context, first int, after *string) (*model.PostConnection, error) {
