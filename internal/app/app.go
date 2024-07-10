@@ -3,16 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
-	"net/http"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/AEKDA/ozon_task/internal/api/graph"
 	"github.com/AEKDA/ozon_task/internal/database/psql"
 	"github.com/AEKDA/ozon_task/internal/dataloader"
 	"github.com/AEKDA/ozon_task/internal/logger"
 	"github.com/AEKDA/ozon_task/internal/repository/inmemory"
 	"github.com/AEKDA/ozon_task/internal/repository/pgrepo"
+	"github.com/AEKDA/ozon_task/internal/server"
 	"github.com/AEKDA/ozon_task/internal/service"
 	"github.com/caarlos0/env/v11"
 	"go.uber.org/zap"
@@ -50,26 +48,14 @@ func Run() {
 	}
 
 	service := service.NewPostService(repo, repo)
+	resolver := &graph.Resolver{PostService: service}
 
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(
-		graph.Config{
-			Resolvers:  &graph.Resolver{PostService: service},
-			Directives: graph.DirectiveRoot{Length: graph.LengthDirective},
-		}))
-
-	mux := http.NewServeMux()
-
-	mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	mux.Handle("/query", srv)
-
-	server := &http.Server{
-		Handler: mux, Addr: fmt.Sprintf(":%d", cfg.App.Port),
-	}
+	server := server.New(resolver, cfg.App.Host, cfg.App.Port)
 
 	server.Handler = dataloader.Middleware(repo, server.Handler)
 	server.Handler = logger.Middleware(log, server.Handler)
 
-	log.Info("starting the server", zap.String("host", cfg.App.Host), zap.Uint16("port", cfg.App.Port))
+	log.Info("starting the server", zap.String("host", cfg.App.Host), zap.Uint32("port", cfg.App.Port))
 	err = server.ListenAndServe()
 	if err != nil {
 		log.Error(err.Error())
